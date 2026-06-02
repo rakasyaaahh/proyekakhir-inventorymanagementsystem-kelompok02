@@ -1,15 +1,13 @@
 <?php
 session_start();
 
-// Define BASE_URL manually for setup since config/database.php might fail to load before connection is established
 define('BASE_URL_SETUP', '/fashion-ims');
 define('DB_CONFIG_PATH', __DIR__ . '/config/database.php');
 
 $error = null;
 $success = null;
-$step = 'init'; // 'init', 'success', 'error'
+$step = 'init';
 
-// Helper function to read database config constants from database.php
 function get_db_config() {
     $config = [
         'host' => 'localhost',
@@ -42,7 +40,6 @@ function get_db_config() {
 
 $db_cfg = get_db_config();
 
-// Test Connection
 $connection_status = 'disconnected';
 $connection_message = '';
 $database_exists = false;
@@ -51,7 +48,6 @@ $installed_tables_count = 0;
 $tables_list = [];
 
 try {
-    // Try connection to MySQL server (without database name first)
     $dsn_server = "mysql:host=" . $db_cfg['host'] . ";charset=" . $db_cfg['charset'];
     $options = [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -61,17 +57,14 @@ try {
     $pdo_test = new PDO($dsn_server, $db_cfg['user'], $db_cfg['pass'], $options);
     $connection_status = 'connected_host';
     
-    // Check if database exists
     $stmt = $pdo_test->query("SHOW DATABASES LIKE '" . $db_cfg['name'] . "'");
     if ($stmt->fetch()) {
         $database_exists = true;
         
-        // Connect to the specific database
         $dsn_db = "mysql:host=" . $db_cfg['host'] . ";dbname=" . $db_cfg['name'] . ";charset=" . $db_cfg['charset'];
         $pdo_db = new PDO($dsn_db, $db_cfg['user'], $db_cfg['pass'], $options);
         $connection_status = 'connected_db';
         
-        // Check tables
         $stmt_tables = $pdo_db->query("SHOW TABLES");
         $tables = $stmt_tables->fetchAll(PDO::FETCH_COLUMN);
         
@@ -79,7 +72,6 @@ try {
             $tables_list = $tables;
             $installed_tables_count = count($tables);
             
-            // Check if key tables exist
             if (in_class_array('user', $tables) && in_class_array('produk', $tables)) {
                 $tables_installed = true;
             }
@@ -94,25 +86,20 @@ function in_class_array($needle, $haystack) {
     return in_array(strtolower($needle), array_map('strtolower', $haystack));
 }
 
-// Handle Setup Execution
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'run_setup') {
     try {
-        // 1. Connect to server
         $dsn_server = "mysql:host=" . $db_cfg['host'] . ";charset=" . $db_cfg['charset'];
         $options = [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES   => true, // Emulate prepares to execute multi-queries
+            PDO::ATTR_EMULATE_PREPARES   => true,
         ];
         $pdo = new PDO($dsn_server, $db_cfg['user'], $db_cfg['pass'], $options);
         
-        // 2. Create database
         $pdo->exec("CREATE DATABASE IF NOT EXISTS `" . $db_cfg['name'] . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
         
-        // 3. Connect to database
         $pdo->exec("USE `" . $db_cfg['name'] . "`");
         
-        // 4. Read and execute SQL file
         $sql_path = __DIR__ . '/database/inventaris_busana.sql';
         if (!file_exists($sql_path)) {
             throw new Exception("Berkas SQL utama tidak ditemukan di: database/inventaris_busana.sql");
@@ -120,10 +107,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         
         $sql_content = file_get_contents($sql_path);
         
-        // Execute the entire SQL script
         $pdo->exec($sql_content);
         
-        // 5. Seed default admin & staff users dynamically
         $users_to_seed = [
             [
                 'email' => 'admin@fashionims.com',
@@ -151,7 +136,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $success = "Database berhasil diinisialisasi! Akun demo Administrator dan Staff telah dibuat.";
         $step = 'success';
         
-        // Re-read installed tables for success display
         $stmt_tables = $pdo->query("SHOW TABLES");
         $tables_list = $stmt_tables->fetchAll(PDO::FETCH_COLUMN);
         $installed_tables_count = count($tables_list);

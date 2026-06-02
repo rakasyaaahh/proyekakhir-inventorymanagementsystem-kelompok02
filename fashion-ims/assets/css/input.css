@@ -1,7 +1,4 @@
-/* =========================================================
-   assets/css/input.css — FashionIMS Tailwind CSS Entry Point
-   ========================================================= */
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
